@@ -14,6 +14,7 @@ import com.android.volley.toolbox.Volley;
 import com.google.gson.Gson;
 import com.wine.pexels.LoadImages;
 import com.wine.pexels.Pexels;
+import com.wine.pexels.TypeOrientation;
 import com.wine.pexels.models.PexelImage;
 
 import org.json.JSONArray;
@@ -35,6 +36,22 @@ public class PexelsApi {
     public PexelsApi(Context c){
        context = c;
        queue = Volley.newRequestQueue(c);
+    }
+
+    private String actualOrientation = "";
+
+    public void setOrientation(TypeOrientation orientation){
+        switch (orientation){
+            case SQUARE:
+                actualOrientation = "square";
+                break;
+            case PORTRAIT:
+                actualOrientation = "portrait";
+                break;
+            case LANDSCAPE:
+                actualOrientation = "landscape";
+                break;
+        }
     }
 
 
@@ -88,5 +105,60 @@ public class PexelsApi {
 
     }
 
+    public void loadByOrientation(String query, int page, LoadImages loadImages){
+
+        String cUrl =baseURl+search+"query="+query+"&page="+page+"&per_page=15";
+
+        if(!actualOrientation.equals("")){
+
+            cUrl = cUrl+"&orientation="+actualOrientation;
+            actualOrientation = "";
+        }
+
+        StringRequest request = new StringRequest(Request.Method.GET, cUrl, new Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+
+                try {
+                    JSONObject obj = new JSONObject(response);
+
+                    JSONArray arr = obj.getJSONArray("photos");
+                    ArrayList<PexelImage> pexelImages = new ArrayList<>();
+
+                    for (int i = 0; i < arr.length(); i++) {
+
+                        PexelImage px = new Gson().fromJson(arr.getJSONObject(i).toString(), PexelImage.class);
+                        pexelImages.add(px);
+
+                    }
+
+
+                    loadImages.OnLoadImages(pexelImages);
+
+                } catch (JSONException e) {
+                    loadImages.OnError(e.getMessage());
+                    e.printStackTrace();
+                }
+
+            }
+        }, new Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                loadImages.OnError(error.getMessage());
+            }
+        }){
+            @Override
+            public Map<String, String> getHeaders() throws AuthFailureError {
+                Map<String, String> headers = new HashMap<>();
+
+                headers.put("Authorization", Pexels.getPexels().getApi());
+                return headers;
+            }
+        };
+
+        queue.add(request);
+
+
+    }
 
 }
